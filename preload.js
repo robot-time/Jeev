@@ -42,7 +42,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offDownloadProgress: () => ipcRenderer.removeAllListeners('download-progress'),
 
   onUpdateReady: (cb) => ipcRenderer.on('update-ready', (_e, info) => cb(info)),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
+  installUpdate: () => ipcRenderer.send('install-update'),
+  testUpdatePopup: (version = '9.9.9') => ipcRenderer.emit('update-ready', {}, { version }),
 
   captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
   getSentryDsn: () => ipcRenderer.invoke('get-sentry-dsn'),

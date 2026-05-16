@@ -309,7 +309,7 @@ autoUpdater.on('error', (err) => {
   console.log('[updater] error:', err.message);
 });
 
-ipcMain.handle('install-update', () => {
+ipcMain.on('install-update', () => {
   autoUpdater.quitAndInstall(false, true);
 });
 
