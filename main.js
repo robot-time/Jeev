@@ -84,10 +84,13 @@ function createWindow() {
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true,
+      spellcheck: true,
     },
   });
 
   session.fromPartition(MAIN_SESSION).setUserAgent(CHROME_UA);
+  session.fromPartition(MAIN_SESSION).setSpellCheckerEnabled(true);
+  session.fromPartition(MAIN_SESSION).setSpellCheckerLanguages(['en-US']);
 
   // Inject sec-ch-ua client hints so the Web Store sees a real Chrome fingerprint
   session.fromPartition(MAIN_SESSION).webRequest.onBeforeSendHeaders((details, callback) => {
