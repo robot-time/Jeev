@@ -47,12 +47,6 @@
   --success: #4caf74;
 }
 
-/* ===================== PALETTES ===================== */
-[data-palette="ocean"]   { --accent: #4a90d9; --accent-dim: rgba(74, 144, 217, 0.18); }
-[data-palette="forest"]  { --accent: #4caf74; --accent-dim: rgba(76, 175, 116, 0.18); }
-[data-palette="sunset"]  { --accent: #e89a4a; --accent-dim: rgba(232, 154, 74, 0.18); }
-[data-palette="lavender"]{ --accent: #7a6ff0; --accent-dim: rgba(122, 111, 240, 0.18); }
-[data-palette="rose"]    { --accent: #d06fc2; --accent-dim: rgba(208, 111, 194, 0.18); }
 
 /* ===================== GLOBAL UTILITIES ===================== */
 .hidden { display: none !important; }
@@ -1311,32 +1305,6 @@ body { display: flex; height: 100vh; width: 100vw; }
 }
 
 /* ===================== SETTINGS EXTRAS ===================== */
-.palette-grid {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.palette-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.palette-swatch:hover { transform: scale(1.1); }
-.palette-swatch.active { border-color: var(--text-primary); }
-.palette-swatch span {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: block;
-}
 
 .segmented-control {
   display: flex;
@@ -1388,6 +1356,79 @@ body { display: flex; height: 100vh; width: 100vw; }
   background: var(--accent);
   cursor: pointer;
   border: none;
+}
+
+/* ===================== HUE STRIP INPUT ===================== */
+.hue-strip-input {
+  width: 100%;
+  margin-top: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+    hsl(0,68%,52%), hsl(30,68%,52%), hsl(60,68%,52%), hsl(90,68%,52%),
+    hsl(120,68%,52%), hsl(150,68%,52%), hsl(180,68%,52%), hsl(210,68%,52%),
+    hsl(240,68%,52%), hsl(270,68%,52%), hsl(300,68%,52%), hsl(330,68%,52%),
+    hsl(359,68%,52%));
+  outline: none;
+  cursor: pointer;
+}
+.hue-strip-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--hue-thumb-color, hsl(210,68%,52%));
+  border: 2.5px solid rgba(255,255,255,0.9);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  cursor: pointer;
+}
+.hue-strip-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--hue-thumb-color, hsl(210,68%,52%));
+  border: 2.5px solid rgba(255,255,255,0.9);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  cursor: pointer;
+}
+
+/* ===================== SPACE MODAL COLOUR SECTION ===================== */
+.sm-color-section {
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+.sm-color-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.sm-mode-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+.sm-mode-btn {
+  flex: 1;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: none;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.sm-mode-btn:hover { background: var(--tab-hover); color: var(--text-primary); }
+.sm-mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
 }
 
 /* ===================== BUTTONS ===================== */
@@ -1575,6 +1616,58 @@ body.sidebar-collapsed #sidebar-resize-handle {
 }
 *::-webkit-scrollbar {
   display: none;
+}
+
+/* ===================== WINDOWS CAPTION CONTROLS ===================== */
+#win-caption {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  z-index: 9;
+  -webkit-app-region: drag;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+body.platform-win32 #win-caption {
+  display: flex;
+}
+body.platform-win32 #win-controls {
+  display: none;
+}
+.wc-win-btn {
+  -webkit-app-region: no-drag;
+  width: 46px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  color: var(--text-secondary);
+  opacity: 0.28;
+  transition: background 0.1s ease, opacity 0.1s ease, color 0.1s ease;
+}
+#win-caption:hover .wc-win-btn {
+  opacity: 0.52;
+}
+.wc-win-btn:hover {
+  background: rgba(100, 100, 110, 0.1);
+  color: var(--text-primary);
+  opacity: 1;
+}
+.wc-win-close-btn:hover {
+  background: #c42b1c;
+  color: #fff;
+  opacity: 1;
+}
+[data-theme="dark"] .wc-win-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .wc-win-close-btn:hover {
+  background: #c42b1c;
+  color: #fff;
 }
 
 /* ===================== WINDOWS: HIDE SCROLLBAR ===================== */

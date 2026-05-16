@@ -24,6 +24,7 @@ let toolbarFadeTimer = null;
 let findActive = false;
 let commandSelectedIndex = -1;
 let commandResults = [];
+let commandBarNewTabMode = false;
 
 // ===================== UTILITIES =====================
 function genId() {
@@ -63,30 +64,90 @@ function googleSearchUrl(q) {
   return 'https://www.google.com/search?q=' + encodeURIComponent(q);
 }
 
-function applyPalette(name) {
-  document.documentElement.setAttribute('data-palette', name);
-  document.querySelectorAll('.palette-swatch').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.palette === name);
-  });
+function hexToHue(hex) {
+  if (!hex || hex.length < 7) return 220;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;
+  let h;
+  if (max === r) h = ((g - b) / d % 6) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return Math.round((h + 360) % 360);
 }
 
-function applyTheme(name) {
+function hueToAccentHex(hue) {
+  const s = 0.65, l = 0.52;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (hue < 60) { r = c; g = x; }
+  else if (hue < 120) { r = x; g = c; }
+  else if (hue < 180) { g = c; b = x; }
+  else if (hue < 240) { g = x; b = c; }
+  else if (hue < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
+function updateHueThumb(sliderEl, hue) {
+  if (!sliderEl) return;
+  sliderEl.style.setProperty('--hue-thumb-color', `hsl(${hue},68%,52%)`);
+}
+
+function applySpaceTheme(hue, themeMode) {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = themeMode === 'dark' || (themeMode !== 'light' && prefersDark);
   const root = document.documentElement;
-  if (name === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const h = Math.round(hue);
+  if (isDark) {
+    root.style.setProperty('--bg', `hsl(${h},6%,7%)`);
+    root.style.setProperty('--sidebar-bg', `hsl(${h},8%,9%)`);
+    root.style.setProperty('--border', `hsl(${h},8%,14%)`);
+    root.style.setProperty('--border-light', `hsl(${h},8%,18%)`);
+    root.style.setProperty('--tab-hover', `hsl(${h},8%,12%)`);
+    root.style.setProperty('--tab-active', `hsl(${h},10%,15%)`);
+    root.style.setProperty('--panel-bg', `hsl(${h},8%,10%)`);
+    root.style.setProperty('--input-bg', `hsl(${h},8%,12%)`);
+    root.style.setProperty('--toolbar-bg', `hsla(${h},8%,10%,0.88)`);
+    root.style.setProperty('--text-primary', `hsl(${h},5%,90%)`);
+    root.style.setProperty('--text-secondary', `hsl(${h},5%,50%)`);
+    root.style.setProperty('--text-muted', `hsl(${h},5%,25%)`);
   } else {
-    root.setAttribute('data-theme', name);
+    root.style.setProperty('--bg', `hsl(${h},20%,94%)`);
+    root.style.setProperty('--sidebar-bg', `hsl(${h},22%,90%)`);
+    root.style.setProperty('--border', `hsl(${h},15%,83%)`);
+    root.style.setProperty('--border-light', `hsl(${h},15%,88%)`);
+    root.style.setProperty('--tab-hover', `hsl(${h},18%,87%)`);
+    root.style.setProperty('--tab-active', `hsl(${h},20%,83%)`);
+    root.style.setProperty('--panel-bg', `hsl(${h},15%,96%)`);
+    root.style.setProperty('--input-bg', `hsl(${h},15%,91%)`);
+    root.style.setProperty('--toolbar-bg', `hsla(${h},20%,90%,0.85)`);
+    root.style.setProperty('--text-primary', `hsl(${h},15%,12%)`);
+    root.style.setProperty('--text-secondary', `hsl(${h},10%,42%)`);
+    root.style.setProperty('--text-muted', `hsl(${h},8%,62%)`);
   }
+  const accentL = isDark ? 62 : 50;
+  root.style.setProperty('--accent', `hsl(${h},68%,${accentL}%)`);
+  root.style.setProperty('--accent-dim', `hsla(${h},68%,${accentL}%,0.15)`);
   document.querySelectorAll('#theme-control button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.theme === name);
+    btn.classList.toggle('active', btn.dataset.theme === (themeMode || 'auto'));
   });
+  const globalSlider = document.getElementById('global-hue-slider');
+  if (globalSlider && parseInt(globalSlider.value) !== h) globalSlider.value = h;
+  updateHueThumb(globalSlider, h);
 }
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  if ((state.settings.theme || 'dark') === 'system') {
-    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-  }
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  const space = getSpace(state.activeSpaceId);
+  const hue = (space && space.hue != null) ? space.hue : (state.settings.hue ?? 220);
+  const themeMode = (space && space.themeMode) ?? state.settings.themeMode ?? 'auto';
+  applySpaceTheme(hue, themeMode);
 });
 
 function applyGrain(intensity) {
@@ -195,11 +256,14 @@ function defaultEmojiForSpace(name) {
 }
 
 // ===================== SPACES =====================
-function createSpace(name, color, id, emoji) {
+function createSpace(name, color, id, emoji, hue, themeMode) {
+  const resolvedHue = hue != null ? hue : (color ? hexToHue(color) : (state.settings.hue ?? 220));
   const space = {
     id: id || genId(),
     name,
-    color: color || SPACE_COLORS[state.spaces.length % SPACE_COLORS.length],
+    hue: resolvedHue,
+    themeMode: themeMode ?? null,
+    color: color || hueToAccentHex(resolvedHue),
     emoji: emoji || defaultEmojiForSpace(name),
     tabIds: [],
   };
@@ -209,6 +273,12 @@ function createSpace(name, color, id, emoji) {
 
 function switchSpace(spaceId) {
   state.activeSpaceId = spaceId;
+  const space = getSpace(spaceId);
+  if (space) {
+    const hue = space.hue != null ? space.hue : (state.settings.hue ?? 220);
+    const themeMode = space.themeMode ?? state.settings.themeMode ?? 'auto';
+    applySpaceTheme(hue, themeMode);
+  }
   renderSpaceDots();
   renderTabList();
   for (const [tid, tab] of Object.entries(state.tabs)) {
@@ -291,7 +361,6 @@ function renderActiveSpaceRow() {
 function makeWebview(id) {
   const tab = state.tabs[id];
   const wv = document.createElement('webview');
-  wv.setAttribute('allowpopups', '');
   wv.setAttribute('plugins', '');
   wv.setAttribute('partition', 'persist:main'); // must match MAIN_SESSION in main.js
   wv.setAttribute('preload', new URL('webview-preload.js', window.location.href).href);
@@ -809,7 +878,8 @@ function updateFloatingToolbarVisibility() {
 }
 
 // ===================== COMMAND BAR =====================
-function openCommandBar(prefill) {
+function openCommandBar(prefill, newTabMode = false) {
+  commandBarNewTabMode = newTabMode;
   const overlay = document.getElementById('command-overlay');
   const input = document.getElementById('command-input');
   overlay.classList.remove('hidden');
@@ -968,9 +1038,11 @@ function activateCmdResult(idx) {
       activateTab(result.id);
     }
   } else if (result.type === 'history' || result.type === 'bookmark' || result.type === 'navigate') {
-    navigate(result.url);
+    if (commandBarNewTabMode) openNewTab(result.url);
+    else navigate(result.url);
   } else if (result.type === 'search') {
-    navigate(googleSearchUrl(result.query));
+    if (commandBarNewTabMode) openNewTab(googleSearchUrl(result.query));
+    else navigate(googleSearchUrl(result.query));
   }
 }
 
@@ -1315,7 +1387,7 @@ function setupKeyboard() {
       return;
     }
 
-    if (cmd && e.key === 't') { e.preventDefault(); openCommandBar(''); return; }
+    if (cmd && e.key === 't') { e.preventDefault(); openCommandBar('', true); return; }
     if (cmd && e.key === 'w') { e.preventDefault(); if (state.activeTabId) closeTab(state.activeTabId); return; }
     if (cmd && (e.key === 'l' || e.key === 'k')) { e.preventDefault(); openCommandBar(currentTabUrlForBar()); return; }
     if (cmd && e.key === 'b') { e.preventDefault(); toggleSidebar(); return; }
@@ -1598,6 +1670,8 @@ function showSpaceModal(editSpaceId = null) {
   const space = isEdit ? getSpace(editSpaceId) : null;
   let selectedEmoji = space ? space.emoji : '🌟';
   let emojiPickerOpen = false;
+  let selectedHue = space != null ? (space.hue ?? state.settings.hue ?? 220) : (state.settings.hue ?? 220);
+  let selectedMode = (space && space.themeMode) ?? state.settings.themeMode ?? 'auto';
 
   const overlay = document.createElement('div');
   overlay.id = 'space-modal-overlay';
@@ -1612,6 +1686,15 @@ function showSpaceModal(editSpaceId = null) {
         placeholder="Space name…" value="${isEdit ? escHtml(space.name) : ''}" maxlength="24">
     </div>
     <div id="sm-emoji-grid" class="sm-emoji-grid hidden"></div>
+    <div class="sm-color-section">
+      <div class="sm-color-label">Colour</div>
+      <input type="range" id="sm-hue-slider" class="hue-strip-input" min="0" max="359" value="${Math.round(selectedHue)}">
+      <div class="sm-mode-row">
+        <button class="sm-mode-btn${selectedMode === 'auto' ? ' active' : ''}" data-mode="auto">Auto</button>
+        <button class="sm-mode-btn${selectedMode === 'light' ? ' active' : ''}" data-mode="light">Light</button>
+        <button class="sm-mode-btn${selectedMode === 'dark' ? ' active' : ''}" data-mode="dark">Dark</button>
+      </div>
+    </div>
     <div class="sm-footer">
       <button id="sm-cancel" class="btn-secondary">Cancel</button>
       <button id="sm-submit" class="btn-primary">${isEdit ? 'Save' : 'Create Space'}</button>
@@ -1644,6 +1727,24 @@ function showSpaceModal(editSpaceId = null) {
     modal.querySelector('#sm-emoji-btn').classList.toggle('active', emojiPickerOpen);
   });
 
+  // Hue slider
+  const hueSlider = modal.querySelector('#sm-hue-slider');
+  updateHueThumb(hueSlider, selectedHue);
+  hueSlider.addEventListener('input', () => {
+    selectedHue = parseInt(hueSlider.value, 10);
+    updateHueThumb(hueSlider, selectedHue);
+    applySpaceTheme(selectedHue, selectedMode);
+  });
+
+  // Mode buttons
+  modal.querySelectorAll('.sm-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedMode = btn.dataset.mode;
+      modal.querySelectorAll('.sm-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+      applySpaceTheme(selectedHue, selectedMode);
+    });
+  });
+
   // Focus name input
   const nameInput = modal.querySelector('#sm-name');
   setTimeout(() => nameInput.focus(), 50);
@@ -1655,10 +1756,14 @@ function showSpaceModal(editSpaceId = null) {
     if (isEdit) {
       space.emoji = selectedEmoji;
       space.name = name;
+      space.hue = selectedHue;
+      space.themeMode = selectedMode;
+      space.color = hueToAccentHex(selectedHue);
       renderSpaceDots();
+      applySpaceTheme(selectedHue, selectedMode);
       scheduleSave();
     } else {
-      const newSpace = createSpace(name, null, null, selectedEmoji);
+      const newSpace = createSpace(name, null, null, selectedEmoji, selectedHue, selectedMode);
       switchSpace(newSpace.id);
       scheduleSave();
     }
@@ -1822,8 +1927,25 @@ async function init() {
   if (state.settings.braveApiKey) {
     document.getElementById('api-key-input').value = state.settings.braveApiKey;
   }
-  applyPalette(state.settings.palette || 'ocean');
-  applyTheme(state.settings.theme || 'light');
+  // Migrate old settings format
+  if (!state.settings.hue && state.settings.palette) {
+    const PALETTE_HUES = { ocean: 210, forest: 142, sunset: 30, lavender: 265, rose: 310 };
+    state.settings.hue = PALETTE_HUES[state.settings.palette] ?? 210;
+  }
+  if (!state.settings.themeMode && state.settings.theme) {
+    state.settings.themeMode = state.settings.theme === 'system' ? 'auto' : state.settings.theme;
+  }
+  // Migrate old spaces that have color but no hue
+  for (const sp of state.spaces) {
+    if (sp.hue == null) sp.hue = hexToHue(sp.color ?? '#4a90d9');
+    if (!sp.themeMode) sp.themeMode = null;
+  }
+  const initSpace = getSpace(state.activeSpaceId);
+  const initHue = initSpace && initSpace.hue != null ? initSpace.hue : (state.settings.hue ?? 220);
+  const initMode = (initSpace && initSpace.themeMode) ?? state.settings.themeMode ?? 'auto';
+  applySpaceTheme(initHue, initMode);
+  const globalSlider = document.getElementById('global-hue-slider');
+  if (globalSlider) { globalSlider.value = state.settings.hue ?? 220; updateHueThumb(globalSlider, state.settings.hue ?? 220); }
   applyGrain(state.settings.grainIntensity !== undefined ? state.settings.grainIntensity : 8);
   applySidebarWidth(state.settings.sidebarWidth || 260);
 
@@ -1858,7 +1980,7 @@ function setupEvents() {
   });
 
   // New tab
-  document.getElementById('new-tab-btn').addEventListener('click', () => openCommandBar(''));
+  document.getElementById('new-tab-btn').addEventListener('click', () => openCommandBar('', true));
 
   // Sidebar collapse / toggle
   document.getElementById('collapse-btn').addEventListener('click', toggleSidebar);
@@ -1909,22 +2031,30 @@ function setupEvents() {
     closeAllPanels();
   });
 
-  // Palette picker
-  document.querySelectorAll('.palette-swatch').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = btn.dataset.palette;
-      state.settings.palette = p;
-      applyPalette(p);
+  // Global hue slider
+  const globalHueSlider = document.getElementById('global-hue-slider');
+  if (globalHueSlider) {
+    globalHueSlider.addEventListener('input', () => {
+      const hue = parseInt(globalHueSlider.value, 10);
+      state.settings.hue = hue;
+      updateHueThumb(globalHueSlider, hue);
+      const space = getSpace(state.activeSpaceId);
+      const effectiveHue = (space && space.hue != null) ? space.hue : hue;
+      const themeMode = (space && space.themeMode) ?? state.settings.themeMode ?? 'auto';
+      applySpaceTheme(effectiveHue, themeMode);
       scheduleSave();
     });
-  });
+  }
 
-  // Theme toggle
+  // Global theme mode
   document.querySelectorAll('#theme-control button').forEach(btn => {
     btn.addEventListener('click', () => {
       const t = btn.dataset.theme;
-      state.settings.theme = t;
-      applyTheme(t);
+      state.settings.themeMode = t;
+      const space = getSpace(state.activeSpaceId);
+      const hue = (space && space.hue != null) ? space.hue : (state.settings.hue ?? 220);
+      const effectiveMode = (space && space.themeMode) ?? t;
+      applySpaceTheme(hue, effectiveMode);
       scheduleSave();
     });
   });
@@ -1947,10 +2077,15 @@ function setupEvents() {
     }
   });
 
-  // Win controls
+  // Win controls (Mac traffic lights)
   document.getElementById('wc-close').addEventListener('click', () => window.electronAPI.close());
   document.getElementById('wc-min').addEventListener('click', () => window.electronAPI.minimize());
   document.getElementById('wc-max').addEventListener('click', () => window.electronAPI.maximize());
+
+  // Win controls (Windows caption buttons)
+  document.getElementById('wc-win-close').addEventListener('click', () => window.electronAPI.close());
+  document.getElementById('wc-win-min').addEventListener('click', () => window.electronAPI.minimize());
+  document.getElementById('wc-win-max').addEventListener('click', () => window.electronAPI.maximize());
 
   // Command bar input
   document.getElementById('command-input').addEventListener('input', (e) => searchCommandBar(e.target.value));

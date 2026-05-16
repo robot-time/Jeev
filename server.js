@@ -245,7 +245,7 @@ async function braveSearch(query) {
   const key = process.env.BRAVE_API_KEY;
   if (!key) throw new Error('BRAVE_API_KEY not set. Add it to your .env file.');
 
-  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&search_lang=en`;
+  const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8&search_lang=en&extra_snippets=1`;
   const resp = await fetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -267,6 +267,7 @@ async function braveSearch(query) {
     url: r.url,
     title: r.title || r.url,
     description: r.description || '',
+    extraSnippets: r.extra_snippets || [],
   }));
 }
 
@@ -288,39 +289,46 @@ app.get('/search', async (req, res) => {
       return res.json({ result: null, sources: [], message: 'No search results found.' });
     }
 
-    // 2. Fetch pages in parallel
-    const pageResults = await Promise.allSettled(
-      sources.map(s => fetchPage(s.url).then(data => data ? { ...data, url: s.url, title: s.title } : null))
-    );
-
-    // 3. Collect all chunks from all pages
-    const allChunksWithMeta = [];
-    for (let i = 0; i < pageResults.length; i++) {
-      const pr = pageResults[i];
-      if (pr.status !== 'fulfilled' || !pr.value) continue;
-      const { text, title, url } = pr.value;
-      if (!text || text.length < 100) continue;
-
-      const chunks = chunkText(text);
-      for (const chunk of chunks) {
-        allChunksWithMeta.push({ chunk, url, title });
+    // 2. Collect Brave's own curated text — descriptions + extra_snippets
+    const candidates = [];
+    for (const s of sources) {
+      if (s.description && s.description.length > 20) {
+        candidates.push({ chunk: s.description, url: s.url, title: s.title });
+      }
+      for (const snip of (s.extraSnippets || [])) {
+        if (snip && snip.length > 20) {
+          candidates.push({ chunk: snip, url: s.url, title: s.title });
+        }
       }
     }
 
-    if (allChunksWithMeta.length === 0) {
+    // 3. Also attempt page fetches in parallel (best effort, 3s per page)
+    const pageResults = await Promise.allSettled(
+      sources.slice(0, 5).map(s => fetchPage(s.url).then(data => data ? { ...data, url: s.url, title: s.title } : null))
+    );
+    for (const pr of pageResults) {
+      if (pr.status !== 'fulfilled' || !pr.value) continue;
+      const { text, title, url } = pr.value;
+      if (!text || text.length < 100) continue;
+      for (const chunk of chunkText(text)) {
+        candidates.push({ chunk, url, title });
+      }
+    }
+
+    if (candidates.length === 0) {
       return res.json({ result: null, sources, message: 'Could not extract text from any result pages.' });
     }
 
-    // 4. Score all chunks
-    const scored = scoreChunks(allChunksWithMeta.map(c => c.chunk), query)
-      .map((s, i) => ({ ...s, ...allChunksWithMeta[i] }))
+    // 4. Score all candidates together
+    const scored = scoreChunks(candidates.map(c => c.chunk), query)
+      .map((s, i) => ({ ...s, ...candidates[i] }))
       .sort((a, b) => b.score - a.score);
 
     const best = scored[0];
-    const SCORE_THRESHOLD = 0.001;
-
-    if (!best || best.score < SCORE_THRESHOLD) {
-      return res.json({ result: null, sources, message: 'No relevant passage found.' });
+    if (!best || best.score === 0) {
+      // Fall back to the first description if scoring finds nothing
+      const fallback = candidates[0];
+      return res.json({ result: fallback.chunk, sourceUrl: fallback.url, sourceTitle: fallback.title, score: 0, sources });
     }
 
     return res.json({
