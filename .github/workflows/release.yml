@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Write .env
+        run: echo "BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }}" > .env
+
       - name: Build & publish Mac
         run: npx electron-builder --mac --publish always
         env:
@@ -44,6 +47,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Write .env
+        run: echo BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }} > .env
 
       - name: Build & publish Windows
         run: npx electron-builder --win --publish always
