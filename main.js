@@ -369,7 +369,14 @@ autoUpdater.on('error', (err) => {
 });
 
 ipcMain.on('install-update', () => {
-  autoUpdater.quitAndInstall(false, true);
+  if (process.platform === 'darwin') {
+    // electron-updater's built-in relaunch is unreliable on macOS;
+    // schedule our own relaunch first, then let quitAndInstall quit.
+    app.relaunch();
+    autoUpdater.quitAndInstall(true, false);
+  } else {
+    autoUpdater.quitAndInstall(false, true);
+  }
 });
 
 app.whenReady().then(async () => {
