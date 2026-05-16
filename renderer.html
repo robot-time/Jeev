@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jeev</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Grain texture overlay -->
+  <div class="grain-layer" id="grain-layer"></div>
+
+  <!-- Global progress bar -->
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <!-- Header: traffic lights + nav + address bar -->
+    <div id="sidebar-header">
+      <div id="header-top-row">
+        <div id="win-controls">
+          <button class="traffic-light tl-close" id="wc-close" title="Close"></button>
+          <button class="traffic-light tl-min" id="wc-min" title="Minimize"></button>
+          <button class="traffic-light tl-max" id="wc-max" title="Maximize"></button>
+        </div>
+        <button id="sidebar-toggle" title="Toggle Sidebar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div id="header-nav">
+          <button class="nav-btn" id="back-btn" title="Back" disabled>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="nav-btn" id="forward-btn" title="Forward" disabled>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="nav-btn" id="refresh-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="stop-icon" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="address-bar" title="Search or navigate (Cmd+L)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="address-icon" id="security-icon">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+        </svg>
+        <span id="address-display">New Tab</span>
+        <button class="nav-btn" id="bookmark-btn" title="Bookmark this page">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="bookmark-icon"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Space switcher (compact dots) -->
+    <div id="space-switcher">
+      <div id="spaces-list"></div>
+      <button id="add-space-btn" class="icon-btn" title="New Space">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <!-- Pinned apps -->
+    <div id="pinned-section" class="tab-section hidden">
+      <div id="pinned-grid"></div>
+    </div>
+
+    <!-- Active space row -->
+    <div id="active-space-row" class="hidden">
+      <div class="space-avatar" id="active-space-avatar"></div>
+      <span class="space-name" id="active-space-name">Space</span>
+      <button class="space-action" id="space-edit-btn" title="Edit Space">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+      </button>
+      <button class="space-action" id="space-menu-btn" title="Space Options">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </button>
+    </div>
+
+    <!-- Tab sections -->
+    <div id="tab-list-container">
+      <div id="open-section" class="tab-section">
+        <div id="tab-list"></div>
+      </div>
+    </div>
+
+    <!-- New tab -->
+    <button id="new-tab-btn" class="new-tab-btn" title="New Tab (Cmd+T)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="btn-label">New Tab</span>
+    </button>
+
+    <!-- Bottom actions -->
+    <div id="sidebar-actions">
+      <div id="download-indicator" class="hidden">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span id="download-label">0%</span>
+      </div>
+      <button class="action-btn" id="bookmarks-btn" title="Bookmarks">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+      </button>
+      <button class="action-btn" id="extensions-btn" title="Extensions">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </button>
+      <button class="action-btn" id="settings-btn" title="Settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      </button>
+      <button class="action-btn" id="collapse-btn" title="Collapse Sidebar (Cmd+B)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="collapse-icon"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content area -->
+  <main id="content-area">
+    <!-- Find bar -->
+    <div id="find-bar" class="hidden">
+      <input id="find-input" type="text" placeholder="Find in page…" autocomplete="off">
+      <span id="find-count"></span>
+      <button id="find-prev" class="find-btn" title="Previous">↑</button>
+      <button id="find-next" class="find-btn" title="Next">↓</button>
+      <button id="find-close" class="find-btn" title="Close">×</button>
+    </div>
+
+    <!-- Webview container -->
+    <div id="webview-container"></div>
+  </main>
+
+  <!-- Snippet Search Overlay (Cmd+Shift+S) -->
+  <div id="snippet-overlay" class="hidden">
+    <div id="snippet-modal">
+      <div id="snippet-input-row">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="snippet-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="snippet-input" type="text" placeholder="Ask a question — get a verbatim answer from the web…" autocomplete="off" spellcheck="false">
+        <div id="snippet-dots" class="hidden"><span></span><span></span><span></span></div>
+        <kbd id="snippet-esc">ESC</kbd>
+      </div>
+      <div id="snippet-body"></div>
+    </div>
+  </div>
+
+  <!-- Feedback Overlay (Cmd+Shift+F) -->
+  <div id="feedback-overlay" class="hidden">
+    <div id="feedback-modal">
+      <div class="fb-header">
+        <span>Send Feedback</span>
+        <button id="fb-close" class="panel-close-btn">&times;</button>
+      </div>
+      <div class="fb-body">
+        <textarea id="fb-message" placeholder="Describe the issue or suggestion…" rows="4"></textarea>
+        <div class="fb-options">
+          <label class="fb-check"><input type="checkbox" id="fb-screenshot" checked> Attach screenshot</label>
+          <label class="fb-check"><input type="checkbox" id="fb-error"> This is about an error</label>
+        </div>
+        <div id="fb-status" class="fb-status hidden"></div>
+        <div class="fb-footer">
+          <button id="fb-submit" class="btn-primary">Send Feedback</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Command Bar -->
+  <div id="command-overlay" class="hidden">
+    <div id="command-bar">
+      <div id="command-input-row">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="command-input" type="text" placeholder="Search tabs, history, or go to URL…" autocomplete="off" spellcheck="false">
+        <kbd>ESC</kbd>
+      </div>
+      <div id="command-results"></div>
+    </div>
+  </div>
+
+  <!-- Extensions Panel -->
+  <div id="extensions-panel" class="panel hidden">
+    <div class="panel-header">
+      <span>Extensions</span>
+      <button class="panel-close-btn">×</button>
+    </div>
+    <div class="panel-body">
+      <div id="extensions-list"></div>
+      <div class="panel-footer-actions">
+        <button id="install-ext-btn" class="btn-primary">Install from Folder</button>
+        <button id="cwstore-btn" class="btn-secondary">Open Chrome Web Store</button>
+        <p class="helper-note">To install from the Web Store, download the .crx manually or use an unpacked extension folder.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookmarks Panel -->
+  <div id="bookmarks-panel" class="panel hidden">
+    <div class="panel-header">
+      <span>Bookmarks</span>
+      <button class="panel-close-btn">×</button>
+    </div>
+    <div class="panel-body">
+      <div id="bookmarks-list"></div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settings-panel" class="panel hidden">
+    <div class="panel-header">
+      <span>Settings</span>
+      <button class="panel-close-btn">×</button>
+    </div>
+    <div class="panel-body">
+      <!-- Palette -->
+      <div class="settings-row">
+        <div class="settings-row-label">Palette</div>
+        <div class="settings-row-sub">Choose your accent colour.</div>
+        <div class="palette-grid" id="palette-grid">
+          <button class="palette-swatch" data-palette="ocean" title="Ocean"><span style="background:#4a90d9"></span></button>
+          <button class="palette-swatch" data-palette="forest" title="Forest"><span style="background:#4caf74"></span></button>
+          <button class="palette-swatch" data-palette="sunset" title="Sunset"><span style="background:#e89a4a"></span></button>
+          <button class="palette-swatch" data-palette="lavender" title="Lavender"><span style="background:#7a6ff0"></span></button>
+          <button class="palette-swatch" data-palette="rose" title="Rose"><span style="background:#d06fc2"></span></button>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="settings-row">
+        <div class="settings-row-label">Appearance</div>
+        <div class="settings-row-sub">Light, dark, or follow the system.</div>
+        <div class="segmented-control" id="theme-control">
+          <button data-theme="light">Light</button>
+          <button data-theme="dark">Dark</button>
+          <button data-theme="system">System</button>
+        </div>
+      </div>
+
+      <!-- Grain -->
+      <div class="settings-row">
+        <div class="settings-row-label">Grain Intensity</div>
+        <div class="settings-row-sub">Subtle noise texture over the interface.</div>
+        <input type="range" id="grain-slider" class="settings-slider" min="0" max="40" value="8">
+        <div class="settings-row-sub"><span id="grain-value">8%</span></div>
+      </div>
+
+      <!-- Sidebar width -->
+      <div class="settings-row">
+        <div class="settings-row-label">Sidebar Width</div>
+        <div class="settings-row-sub">Pixels.</div>
+        <input type="number" id="sidebar-width-input" class="settings-input" value="260" min="180" max="360">
+      </div>
+
+      <!-- Brave API Key -->
+      <div class="settings-row">
+        <div class="settings-row-label">Brave Search API Key</div>
+        <div class="settings-row-sub">Powers the quote-first search on the new tab page.</div>
+        <div class="settings-row-input">
+          <input type="password" id="api-key-input" class="settings-input" placeholder="Enter key…">
+          <button id="save-api-key" class="btn-primary">Save</button>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="settings-row">
+        <div class="settings-row-label">About</div>
+        <div class="settings-row-sub">Jeev — a minimal browser. No telemetry.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel backdrop -->
+  <div id="panel-backdrop" class="hidden"></div>
+
+  <!-- Update notification (bottom-left of content area) -->
+  <div id="update-popup" class="hidden">
+    <div id="update-popup-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+    </div>
+    <div id="update-popup-body">
+      <div id="update-popup-title">Update available</div>
+      <div id="update-popup-version"></div>
+    </div>
+    <button id="update-install-btn">Install &amp; Restart</button>
+    <button id="update-dismiss-btn" title="Dismiss">×</button>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

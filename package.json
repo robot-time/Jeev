@@ -1,0 +1,53 @@
+{
+  "name": "jeev",
+  "productName": "Jeev",
+  "version": "1.0.0",
+  "description": "Jeev — a minimal Electron browser with spaces, a sidebar, and a quote-first new tab search engine",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "publish": "electron-builder --publish always"
+  },
+  "build": {
+    "appId": "com.jeev.browser",
+    "productName": "Jeev",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.html",
+      "renderer.js",
+      "styles.css",
+      "server.js",
+      "newtab.html",
+      "newtab.js",
+      "newtab.css",
+      "webview-preload.js",
+      "node_modules/**"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "robot-time",
+      "repo": "jeev"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
+    }
+  },
+  "dependencies": {
+    "@sentry/electron": "^5.12.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "electron-updater": "^6.8.3",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^26.8.1"
+  }
+}
