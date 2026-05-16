@@ -226,6 +226,10 @@ function createWindow() {
 
   ipcMain.handle('get-sentry-dsn', () => process.env.SENTRY_DSN || null);
 
+  ipcMain.handle('test-update-popup', (_, version) => {
+    mainWindow.webContents.send('update-ready', { version });
+  });
+
   ipcMain.handle('install-extension', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       title: 'Select Unpacked Extension Folder',

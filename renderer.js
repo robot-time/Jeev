@@ -763,6 +763,7 @@ function completeProgress() {
 // ===================== FLOATING TOOLBAR =====================
 function setupFloatingToolbar() {
   const toolbar = document.getElementById('floating-toolbar');
+  if (!toolbar) return;
   const content = document.getElementById('content-area');
 
   function showToolbar() {
@@ -789,6 +790,7 @@ function setupFloatingToolbar() {
 
 function updateFloatingToolbarVisibility() {
   const toolbar = document.getElementById('floating-toolbar');
+  if (!toolbar) return;
   toolbar.classList.remove('faded');
   clearTimeout(toolbarFadeTimer);
   toolbarFadeTimer = setTimeout(() => toolbar.classList.add('faded'), 2800);
@@ -1437,14 +1439,17 @@ function setupUpdater() {
   window.electronAPI.onUpdateReady((info) => {
     const popup = document.getElementById('update-popup');
     const ver = document.getElementById('update-popup-version');
-    ver.textContent = 'v' + info.version + ' is ready';
+    if (!popup || !ver) return;
+    ver.textContent = 'v' + info.version + ' is ready to install';
     popup.classList.remove('hidden');
-    // Animate in
-    requestAnimationFrame(() => popup.classList.add('update-popup-visible'));
+    requestAnimationFrame(() => requestAnimationFrame(() => popup.classList.add('update-popup-visible')));
   });
 
   document.getElementById('update-install-btn').addEventListener('click', () => {
-    window.electronAPI.installUpdate();
+    const btn = document.getElementById('update-install-btn');
+    btn.textContent = 'Restarting…';
+    btn.disabled = true;
+    setTimeout(() => window.electronAPI.installUpdate(), 300);
   });
 
   document.getElementById('update-dismiss-btn').addEventListener('click', () => {

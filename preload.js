@@ -3,13 +3,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 let Sentry = null;
 let sentryDsn = '';
 try {
-  Sentry = require('@sentry/electron/renderer');
+  Sentry = require('@sentry/electron/renderer/index.js');
   sentryDsn = process.env.SENTRY_DSN || '';
   if (sentryDsn) {
     Sentry.init();
   }
 } catch (err) {
-  console.error('[preload] Sentry init failed:', err);
+  // Sentry unavailable — feedback capture disabled
 }
 
 function dataUrlToUint8Array(dataUrl) {
@@ -43,7 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onUpdateReady: (cb) => ipcRenderer.on('update-ready', (_e, info) => cb(info)),
   installUpdate: () => ipcRenderer.send('install-update'),
-  testUpdatePopup: (version = '9.9.9') => ipcRenderer.emit('update-ready', {}, { version }),
+  testUpdatePopup: (version = '9.9.9') => ipcRenderer.invoke('test-update-popup', version),
 
   captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
   getSentryDsn: () => ipcRenderer.invoke('get-sentry-dsn'),
