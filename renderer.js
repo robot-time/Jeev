@@ -552,6 +552,7 @@ function renderTabList() {
         el.innerHTML = `<svg class="tab-fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/></svg>`;
       }
       el.addEventListener('click', () => activateTab(tab.id));
+      el.addEventListener('contextmenu', (e) => { e.preventDefault(); showTabContextMenu(e, tab.id); });
       pinnedGrid.appendChild(el);
     }
   } else {
