@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: () => ipcRenderer.send('install-update'),
   testUpdatePopup: (version = '9.9.9') => ipcRenderer.invoke('test-update-popup', version),
 
+  installCrxById: (id) => ipcRenderer.invoke('install-crx-by-id', id),
+  onExtensionInstalled: (cb) => ipcRenderer.on('extension-installed', (_e, info) => cb(info)),
+
   captureScreenshot: () => ipcRenderer.invoke('capture-screenshot'),
   getSentryDsn: () => ipcRenderer.invoke('get-sentry-dsn'),
 

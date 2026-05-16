@@ -3,7 +3,7 @@
 // Inject Chrome API globals so the Chrome Web Store recognises this as Chrome.
 // This runs inside every webview before any page scripts.
 
-const CHROME_VER = '124';
+const CHROME_VER = '136';
 
 // navigator.webdriver — Google uses this to detect automated/embedded browsers
 try {
@@ -111,9 +111,48 @@ if (!window.chrome.runtime) {
 
 // webstore shim — the store checks this to confirm it's talking to Chrome
 window.chrome.webstore = {
-  install: function(_url, _ok, fail) { if (fail) fail('not_permitted_by_policy'); },
+  install: function(url, ok, fail) {
+    // Extract extension ID from the store URL
+    const m = (url || '').match(/\/([a-z]{32})(?:[/?]|$)/);
+    const id = m && m[1];
+    if (!id) { if (fail) fail('invalid_id'); return; }
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.sendToHost('install-crx-by-id', id);
+    if (ok) ok();
+  },
   onInstallStageChanged: { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
   onDownloadProgress:    { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
+};
+
+// webstorePrivate — private API the Web Store install button actually calls
+let _pendingCrxId = null;
+window.chrome.webstorePrivate = {
+  beginInstallWithManifest3: function(details, cb) {
+    _pendingCrxId = details && details.id;
+    if (cb) cb('');  // '' = success
+  },
+  completeInstall: function(expectedId, cb) {
+    const id = expectedId || _pendingCrxId;
+    _pendingCrxId = null;
+    if (!id) { if (cb) cb('missing_id'); return; }
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.sendToHost('install-crx-by-id', id);
+    if (cb) cb('');
+  },
+  isInIncognitoMode: function(cb) { if (cb) cb(false); },
+  getStoreLogin: function(cb) { if (cb) cb(''); },
+  setStoreLogin: function(_l, cb) { if (cb) cb(); },
+  getBrowserLogin: function(cb) { if (cb) cb({ login: '' }); },
+  getWebGLStatus: function(cb) { if (cb) cb({ webgl_status: 'webgl_allowed' }); },
+  getIsLauncherEnabled: function(cb) { if (cb) cb(false); },
+  isAutoConfirmCode: function(cb) { if (cb) cb(false); },
+  getExtensionStatus: function(_id, _manifest, cb) { if (cb) cb('installable'); },
+  getAvailability: function(_id, _ver, _type, _op, cb) { if (cb) cb({ result: 1 }); },
+  getProfileInfo: function(cb) { if (cb) cb({}); },
+  getEphemeralAppsEnabled: function(cb) { if (cb) cb(false); },
+  installBundle: function(_details, cb) { if (cb) cb(null, []); },
+  onInstallStageChanged: { addListener: function() {}, removeListener: function() {} },
+  onDownloadProgress: { addListener: function() {}, removeListener: function() {} },
 };
 
 // Hide Electron-specific globals that pages can probe

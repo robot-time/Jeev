@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, session, dialog, shell, Menu, MenuItem } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 let Sentry = null;
 try {
@@ -30,6 +30,8 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 let serverProcess;
+
+const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
 
 const userDataPath = app.getPath('userData');
 const extensionsPath = path.join(userDataPath, 'extensions');
@@ -85,13 +87,12 @@ function createWindow() {
     },
   });
 
-  const chromeUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-  session.fromPartition(MAIN_SESSION).setUserAgent(chromeUA);
+  session.fromPartition(MAIN_SESSION).setUserAgent(CHROME_UA);
 
   // Inject sec-ch-ua client hints so the Web Store sees a real Chrome fingerprint
   session.fromPartition(MAIN_SESSION).webRequest.onBeforeSendHeaders((details, callback) => {
     const h = details.requestHeaders;
-    h['sec-ch-ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
+    h['sec-ch-ua'] = '"Chromium";v="136", "Google Chrome";v="136", "Not-A.Brand";v="99"';
     h['sec-ch-ua-mobile'] = '?0';
     h['sec-ch-ua-platform'] = '"macOS"';
     callback({ requestHeaders: h });
@@ -230,6 +231,60 @@ function createWindow() {
     mainWindow.webContents.send('update-ready', { version });
   });
 
+  ipcMain.handle('install-crx-by-id', async (_, extensionId) => {
+    const fetch = require('node-fetch');
+    const { execSync } = require('child_process');
+    const os = require('os');
+
+    const crxUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=136.0.0.0&x=id%3D${extensionId}%26uc%26installsource%3Dondemand&acceptformat=crx3,crx2`;
+
+    try {
+      const resp = await fetch(crxUrl, {
+        headers: { 'User-Agent': CHROME_UA },
+        redirect: 'follow',
+      });
+      if (!resp.ok) return { error: `Download failed: ${resp.status}` };
+
+      const crxBuffer = Buffer.from(await resp.buffer());
+
+      // Parse CRX header to locate the embedded ZIP
+      const magic = crxBuffer.slice(0, 4).toString('ascii');
+      if (magic !== 'Cr24') return { error: 'Not a valid CRX file' };
+
+      const version = crxBuffer.readUInt32LE(4);
+      let zipOffset;
+      if (version === 3) {
+        zipOffset = 12 + crxBuffer.readUInt32LE(8);
+      } else if (version === 2) {
+        zipOffset = 16 + crxBuffer.readUInt32LE(8) + crxBuffer.readUInt32LE(12);
+      } else {
+        return { error: `Unknown CRX version: ${version}` };
+      }
+
+      const zipBuffer = crxBuffer.slice(zipOffset);
+      const tmpZip = path.join(os.tmpdir(), `jeev-ext-${extensionId}.zip`);
+      const extDir = path.join(extensionsPath, extensionId);
+
+      fs.writeFileSync(tmpZip, zipBuffer);
+      if (fs.existsSync(extDir)) fs.rmSync(extDir, { recursive: true, force: true });
+      fs.mkdirSync(extDir, { recursive: true });
+
+      if (process.platform === 'win32') {
+        execSync(`powershell -command "Expand-Archive -LiteralPath '${tmpZip}' -DestinationPath '${extDir}' -Force"`, { timeout: 30000 });
+      } else {
+        execSync(`unzip -o "${tmpZip}" -d "${extDir}"`, { timeout: 30000 });
+      }
+      try { fs.unlinkSync(tmpZip); } catch (_) {}
+
+      const ext = await session.fromPartition(MAIN_SESSION).loadExtension(extDir, { allowFileAccess: true });
+      if (mainWindow) mainWindow.webContents.send('extension-installed', { name: ext.name });
+      return { success: true, name: ext.name };
+    } catch (e) {
+      console.error('[crx-install]', e.message);
+      return { error: e.message };
+    }
+  });
+
   ipcMain.handle('install-extension', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       title: 'Select Unpacked Extension Folder',
@@ -283,7 +338,7 @@ function createWindow() {
         preload: path.join(__dirname, 'webview-preload.js'),
       },
     });
-    signInWindow.webContents.setUserAgent(chromeUA);
+    signInWindow.webContents.setUserAgent(CHROME_UA);
     signInWindow.loadURL('https://accounts.google.com/ServiceLogin?continue=https://www.google.com/');
 
     // Once Google redirects back to google.com the user has signed in

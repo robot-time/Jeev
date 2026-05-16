@@ -360,6 +360,18 @@ function makeWebview(id) {
     }
   });
 
+  // Handle messages from webview preload (e.g. Chrome Web Store install)
+  wv.addEventListener('ipc-message', (e) => {
+    if (e.channel === 'install-crx-by-id') {
+      const extId = e.args[0];
+      showToast('Installing extension…');
+      window.electronAPI.installCrxById(extId).then((result) => {
+        if (result && result.success) showToast(`"${result.name}" installed — reload tabs to activate`);
+        else if (result && result.error) showToast('Install failed: ' + result.error);
+      });
+    }
+  });
+
   document.getElementById('webview-container').appendChild(wv);
   return wv;
 }
