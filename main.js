@@ -90,7 +90,7 @@ function createWindow() {
 
   session.fromPartition(MAIN_SESSION).setUserAgent(CHROME_UA);
   session.fromPartition(MAIN_SESSION).setSpellCheckerEnabled(true);
-  session.fromPartition(MAIN_SESSION).setSpellCheckerLanguages(['en-US']);
+  session.fromPartition(MAIN_SESSION).setSpellCheckerLanguages(['en-AU']);
 
   // Inject sec-ch-ua client hints so the Web Store sees a real Chrome fingerprint
   session.fromPartition(MAIN_SESSION).webRequest.onBeforeSendHeaders((details, callback) => {
