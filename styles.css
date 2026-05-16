@@ -244,27 +244,26 @@ body { display: flex; height: 100vh; width: 100vw; }
 
 /* Emoji space button */
 .space-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   background: transparent;
-  border: 1.5px solid transparent;
-  transition: background var(--transition), border-color 0.15s, transform 0.1s;
+  border: none;
+  padding: 1px 3px 4px;
+  border-bottom: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
   flex-shrink: 0;
   position: relative;
   user-select: none;
-  color: var(--text-secondary);
 }
-.space-btn:hover { background: var(--tab-hover); transform: scale(1.06); }
+.space-btn:hover { transform: scale(1.15); opacity: 1; }
+.space-btn:not(.active) { opacity: 0.55; }
 .space-btn.active {
-  background: var(--tab-active);
-  /* border-color set inline with space.color */
+  opacity: 1;
+  /* border-bottom-color set inline with space.color */
 }
 
 #add-space-btn {
@@ -282,7 +281,7 @@ body { display: flex; height: 100vh; width: 100vw; }
 #add-space-btn:hover { background: var(--border-light); color: var(--text-secondary); }
 
 /* Collapsed sidebar */
-#sidebar.collapsed .space-btn { width: 32px; height: 32px; font-size: 18px; border-radius: 8px; }
+#sidebar.collapsed .space-btn { font-size: 22px; padding: 2px 4px 5px; }
 #sidebar.collapsed #space-switcher { flex-direction: column; padding: 0 0 10px; align-items: center; gap: 4px; }
 #sidebar.collapsed #spaces-list { flex-direction: column; gap: 4px; align-items: center; }
 
@@ -1538,4 +1537,50 @@ body { display: flex; height: 100vh; width: 100vw; }
 #sidebar.collapsed ~ * #update-popup,
 body.sidebar-collapsed #update-popup {
   left: calc(var(--sidebar-collapsed) + 16px);
+}
+
+/* ===================== SIDEBAR RESIZE HANDLE ===================== */
+#sidebar-resize-handle {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  width: 6px;
+  height: 100%;
+  z-index: 20;
+  cursor: col-resize;
+}
+#sidebar-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 2px;
+  height: 100%;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+#sidebar-resize-handle:hover::after,
+#sidebar-resize-handle.dragging::after {
+  opacity: 0.5;
+}
+#sidebar.collapsed ~ #sidebar-resize-handle,
+body.sidebar-collapsed #sidebar-resize-handle {
+  display: none;
+}
+
+/* ===================== HIDE SCROLLBARS ===================== */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===================== WINDOWS: HIDE SCROLLBAR ===================== */
+body.platform-win32 * {
+  scrollbar-width: none;
+}
+body.platform-win32 *::-webkit-scrollbar {
+  display: none;
 }

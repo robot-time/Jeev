@@ -37,12 +37,14 @@
       "hardenedRuntime": true,
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
+      "icon": "resources/icon.icns",
       "target": [
         { "target": "zip", "arch": ["arm64", "x64"] },
         { "target": "dmg", "arch": ["arm64", "x64"] }
       ]
     },
     "win": {
+      "icon": "resources/icon-nobg.png",
       "target": [
         { "target": "nsis", "arch": ["x64", "arm64"] }
       ],

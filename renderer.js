@@ -105,6 +105,8 @@ function applySidebarWidth(width) {
   root.style.setProperty('--sidebar-width', width + 'px');
   const input = document.getElementById('sidebar-width-input');
   if (input) input.value = width;
+  const handle = document.getElementById('sidebar-resize-handle');
+  if (handle) handle.style.left = width + 'px';
 }
 
 function getNewtabUrl() {
@@ -264,8 +266,7 @@ function renderSpaceDots() {
     btn.dataset.spaceId = space.id;
     btn.textContent = space.emoji;
     if (space.id === state.activeSpaceId) {
-      btn.style.borderColor = space.color;
-      btn.style.boxShadow = `0 0 0 1px ${space.color}22`;
+      btn.style.borderBottomColor = space.color;
     }
     btn.addEventListener('click', () => switchSpace(space.id));
     btn.addEventListener('contextmenu', (e) => { e.preventDefault(); showSpaceContextMenu(e, space.id); });
@@ -818,7 +819,8 @@ function searchCommandBar(query) {
   const q = query.trim();
 
   if (!q) {
-    // Show open tabs
+    appendCmdSection('');
+    appendCmdResult({ type: 'newtab', title: 'New Tab', sub: 'Open a new tab', icon: 'newtab' });
     const spaceTabs = getSpaceTabs(state.activeSpaceId);
     if (spaceTabs.length) {
       appendCmdSection('Open Tabs');
@@ -826,6 +828,8 @@ function searchCommandBar(query) {
         appendCmdResult({ type: 'tab', id: tab.id, title: tab.title || 'New Tab', sub: getDomain(tab.url), favicon: tab.favicon });
       }
     }
+    commandSelectedIndex = 0;
+    highlightCmdResult(0);
     return;
   }
 
@@ -903,6 +907,8 @@ function appendCmdResult(data) {
   let iconHtml = '';
   if (data.favicon) {
     iconHtml = `<div class="cmd-result-icon"><img src="${data.favicon}" onerror="this.parentElement.innerHTML='<svg viewBox=\\'0 0 24 24\\' width=\\'14\\' height=\\'14\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'10\\'/></svg>'"></div>`;
+  } else if (data.icon === 'newtab') {
+    iconHtml = `<div class="cmd-result-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
   } else if (data.icon === 'search') {
     iconHtml = `<div class="cmd-result-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>`;
   } else if (data.icon === 'arrow') {
@@ -939,7 +945,9 @@ function activateCmdResult(idx) {
   if (!result) return;
   closeCommandBar();
 
-  if (result.type === 'tab') {
+  if (result.type === 'newtab') {
+    openNewTab();
+  } else if (result.type === 'tab') {
     const tab = state.tabs[result.id];
     if (tab) {
       if (tab.spaceId !== state.activeSpaceId) switchSpace(tab.spaceId);
@@ -1241,6 +1249,45 @@ async function saveFeedback(entry) {
   } catch { /* non-critical */ }
 }
 
+// ===================== SIDEBAR RESIZE =====================
+function setupSidebarResize() {
+  const handle = document.getElementById('sidebar-resize-handle');
+  if (!handle) return;
+
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(180, Math.min(420, startWidth + delta));
+    applySidebarWidth(newWidth);
+    handle.style.left = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    const w = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+    state.settings.sidebarWidth = w;
+    scheduleSave();
+  });
+}
+
 // ===================== KEYBOARD SHORTCUTS =====================
 function setupKeyboard() {
   document.addEventListener('keydown', (e) => {
@@ -1254,7 +1301,7 @@ function setupKeyboard() {
       return;
     }
 
-    if (cmd && e.key === 't') { e.preventDefault(); openNewTab(); return; }
+    if (cmd && e.key === 't') { e.preventDefault(); openCommandBar(''); return; }
     if (cmd && e.key === 'w') { e.preventDefault(); if (state.activeTabId) closeTab(state.activeTabId); return; }
     if (cmd && (e.key === 'l' || e.key === 'k')) { e.preventDefault(); openCommandBar(currentTabUrlForBar()); return; }
     if (cmd && e.key === 'b') { e.preventDefault(); toggleSidebar(); return; }
@@ -1697,6 +1744,7 @@ async function init() {
   // Platform check
   const isMac = await window.electronAPI.isMac();
   document.getElementById('win-controls').classList.toggle('hidden', isMac);
+  if (!isMac) document.body.classList.add('platform-win32');
 
   await loadState();
 
@@ -1766,6 +1814,7 @@ async function init() {
   setupKeyboard();
   setupDownloads();
   setupUpdater();
+  setupSidebarResize();
   setupEvents();
 }
 
@@ -1792,7 +1841,7 @@ function setupEvents() {
   });
 
   // New tab
-  document.getElementById('new-tab-btn').addEventListener('click', () => openNewTab());
+  document.getElementById('new-tab-btn').addEventListener('click', () => openCommandBar(''));
 
   // Sidebar collapse / toggle
   document.getElementById('collapse-btn').addEventListener('click', toggleSidebar);
