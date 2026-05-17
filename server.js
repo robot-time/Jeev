@@ -290,13 +290,16 @@ app.get('/search', async (req, res) => {
     }
 
     // 2. Collect Brave's own curated text — descriptions + extra_snippets
+    // Require at least 12 words to filter out image alt text and navigation fragments
+    const minWords = 12;
+    const isUsable = (text) => text && text.split(/\s+/).length >= minWords;
     const candidates = [];
     for (const s of sources) {
-      if (s.description && s.description.length > 20) {
+      if (isUsable(s.description)) {
         candidates.push({ chunk: s.description, url: s.url, title: s.title });
       }
       for (const snip of (s.extraSnippets || [])) {
-        if (snip && snip.length > 20) {
+        if (isUsable(snip)) {
           candidates.push({ chunk: snip, url: s.url, title: s.title });
         }
       }
@@ -326,8 +329,8 @@ app.get('/search', async (req, res) => {
 
     const best = scored[0];
     if (!best || best.score === 0) {
-      // Fall back to the first description if scoring finds nothing
-      const fallback = candidates[0];
+      // Fall back to the longest candidate (most informative)
+      const fallback = candidates.reduce((a, b) => b.chunk.length > a.chunk.length ? b : a, candidates[0]);
       return res.json({ result: fallback.chunk, sourceUrl: fallback.url, sourceTitle: fallback.title, score: 0, sources });
     }
 

@@ -1,7 +1,7 @@
 {
   "name": "jeev",
   "productName": "Jeev",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Jeev — a minimal Electron browser with spaces, a sidebar, and a quote-first new tab search engine",
   "main": "main.js",
   "scripts": {

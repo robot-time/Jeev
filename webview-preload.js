@@ -4,6 +4,8 @@
 // This runs inside every webview before any page scripts.
 
 const CHROME_VER = '136';
+// Derive platform from the actual UA so it stays consistent with sec-ch-ua-platform
+const _uaPlatform = /Windows/.test(navigator.userAgent) ? 'Windows' : /Linux/.test(navigator.userAgent) ? 'Linux' : 'macOS';
 
 // navigator.webdriver — Google uses this to detect automated/embedded browsers
 try {
@@ -32,20 +34,20 @@ try {
     get: () => ({
       brands,
       mobile: false,
-      platform: 'macOS',
+      platform: _uaPlatform,
       getHighEntropyValues: () => Promise.resolve({
-        architecture: 'arm',
+        architecture: _uaPlatform === 'Windows' ? 'x86' : 'arm',
         bitness: '64',
         brands,
         fullVersionList: brands.map(b => ({ brand: b.brand, version: `${b.version}.0.0.0` })),
         mobile: false,
         model: '',
-        platform: 'macOS',
+        platform: _uaPlatform,
         platformVersion: '13.0.0',
         uaFullVersion: `${CHROME_VER}.0.0.0`,
         wow64: false,
       }),
-      toJSON: () => ({ brands, mobile: false, platform: 'macOS' }),
+      toJSON: () => ({ brands, mobile: false, platform: _uaPlatform }),
     }),
     configurable: true,
   });
@@ -147,12 +149,34 @@ window.chrome.webstorePrivate = {
   getIsLauncherEnabled: function(cb) { if (cb) cb(false); },
   isAutoConfirmCode: function(cb) { if (cb) cb(false); },
   getExtensionStatus: function(_id, _manifest, cb) { if (cb) cb('installable'); },
-  getAvailability: function(_id, _ver, _type, _op, cb) { if (cb) cb({ result: 1 }); },
+  // result: 2 = CAN_REQUEST_INSTALL (the store shows the install button)
+  getAvailability: function(_id, _ver, _type, _op, cb) { if (cb) cb({ result: 2 }); },
   getProfileInfo: function(cb) { if (cb) cb({}); },
   getEphemeralAppsEnabled: function(cb) { if (cb) cb(false); },
   installBundle: function(_details, cb) { if (cb) cb(null, []); },
   onInstallStageChanged: { addListener: function() {}, removeListener: function() {} },
   onDownloadProgress: { addListener: function() {}, removeListener: function() {} },
+};
+
+// Make key webstorePrivate methods appear as native bindings (toString check)
+const _nativeToString = function() { return 'function () { [native code] }'; };
+['beginInstallWithManifest3', 'completeInstall', 'getAvailability', 'getExtensionStatus'].forEach(fn => {
+  if (window.chrome.webstorePrivate[fn]) {
+    window.chrome.webstorePrivate[fn].toString = _nativeToString;
+  }
+});
+
+// chrome.management — required by modern Web Store to check installability
+window.chrome.management = {
+  getAll: function(cb) { if (cb) cb([]); return Promise.resolve([]); },
+  get: function(_id, cb) { if (cb) cb(null); return Promise.resolve(null); },
+  getPermissionWarningsById: function(_id, cb) { if (cb) cb([]); },
+  setEnabled: function(_id, _enabled, cb) { if (cb) cb(); },
+  uninstall: function(_id, _opts, cb) { if (cb) cb(); },
+  onInstalled: { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
+  onUninstalled: { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
+  onEnabled: { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
+  onDisabled: { addListener: function() {}, removeListener: function() {}, hasListener: function() { return false; } },
 };
 
 // Hide Electron-specific globals that pages can probe

@@ -22,6 +22,15 @@ if (Sentry && process.env.SENTRY_DSN) {
   }
 }
 
+// Chromium feature flags — must be set before app.whenReady()
+app.commandLine.appendSwitch('enable-features', [
+  'WebAuthenticationPasskeys',
+  'WebAuthenticationConditionalUI',
+  'FedCm',
+].join(','));
+// Disable flags that expose Electron identity to sites
+app.commandLine.appendSwitch('disable-features', 'ElectronAutoUpdater');
+
 // Must be set before app is ready so macOS menu bar and dock show "Jeev"
 app.name = 'Jeev';
 const path = require('path');
@@ -31,7 +40,11 @@ const { spawn } = require('child_process');
 let mainWindow;
 let serverProcess;
 
-const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+const CHROME_UA = process.platform === 'win32'
+  ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
+  : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+
+const CH_UA_PLATFORM = process.platform === 'win32' ? '"Windows"' : process.platform === 'linux' ? '"Linux"' : '"macOS"';
 
 const userDataPath = app.getPath('userData');
 const extensionsPath = path.join(userDataPath, 'extensions');
@@ -97,7 +110,7 @@ function createWindow() {
     const h = details.requestHeaders;
     h['sec-ch-ua'] = '"Chromium";v="136", "Google Chrome";v="136", "Not-A.Brand";v="99"';
     h['sec-ch-ua-mobile'] = '?0';
-    h['sec-ch-ua-platform'] = '"macOS"';
+    h['sec-ch-ua-platform'] = CH_UA_PLATFORM;
     callback({ requestHeaders: h });
   });
 

@@ -138,9 +138,6 @@ function applySpaceTheme(hue, themeMode) {
   document.querySelectorAll('#theme-control button').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.theme === (themeMode || 'auto'));
   });
-  const globalSlider = document.getElementById('global-hue-slider');
-  if (globalSlider && parseInt(globalSlider.value) !== h) globalSlider.value = h;
-  updateHueThumb(globalSlider, h);
 }
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -361,6 +358,7 @@ function renderActiveSpaceRow() {
 function makeWebview(id) {
   const tab = state.tabs[id];
   const wv = document.createElement('webview');
+  wv.setAttribute('allowpopups', '');
   wv.setAttribute('plugins', '');
   wv.setAttribute('partition', 'persist:main'); // must match MAIN_SESSION in main.js
   wv.setAttribute('preload', new URL('webview-preload.js', window.location.href).href);
@@ -415,9 +413,10 @@ function makeWebview(id) {
       return;
     }
 
-    // User actively navigated to a sign-in page — open a dedicated sign-in window
-    // that shares the session so cookies carry back to all webviews automatically.
-    if (/ServiceLogin|GlifWebSignIn|\/signin\//i.test(url)) {
+    // User actively navigated to a Google sign-in page — open a dedicated window.
+    // Exclude OAuth flows (/o/oauth2/, /signin/oauth/) — these are cross-site auth
+    // redirects that must complete in the webview or they break the OAuth handshake.
+    if (/ServiceLogin|GlifWebSignIn/i.test(url) && !/\/o\/oauth2\/|\/signin\/oauth\//i.test(url)) {
       wv.stop();
       showToast('Opening Google sign-in…');
       window.electronAPI.googleSignIn().then((signedIn) => {
@@ -1727,13 +1726,20 @@ function showSpaceModal(editSpaceId = null) {
     modal.querySelector('#sm-emoji-btn').classList.toggle('active', emojiPickerOpen);
   });
 
-  // Hue slider
+  // Hue slider — RAF-throttled so dragging stays smooth
   const hueSlider = modal.querySelector('#sm-hue-slider');
   updateHueThumb(hueSlider, selectedHue);
+  let hueRafPending = false;
   hueSlider.addEventListener('input', () => {
     selectedHue = parseInt(hueSlider.value, 10);
     updateHueThumb(hueSlider, selectedHue);
-    applySpaceTheme(selectedHue, selectedMode);
+    if (!hueRafPending) {
+      hueRafPending = true;
+      requestAnimationFrame(() => {
+        hueRafPending = false;
+        applySpaceTheme(selectedHue, selectedMode);
+      });
+    }
   });
 
   // Mode buttons
@@ -2031,7 +2037,7 @@ function setupEvents() {
     closeAllPanels();
   });
 
-  // Global hue slider
+  // Global hue slider — applies its own value directly (previews global default)
   const globalHueSlider = document.getElementById('global-hue-slider');
   if (globalHueSlider) {
     globalHueSlider.addEventListener('input', () => {
@@ -2039,9 +2045,8 @@ function setupEvents() {
       state.settings.hue = hue;
       updateHueThumb(globalHueSlider, hue);
       const space = getSpace(state.activeSpaceId);
-      const effectiveHue = (space && space.hue != null) ? space.hue : hue;
       const themeMode = (space && space.themeMode) ?? state.settings.themeMode ?? 'auto';
-      applySpaceTheme(effectiveHue, themeMode);
+      applySpaceTheme(hue, themeMode);
       scheduleSave();
     });
   }
